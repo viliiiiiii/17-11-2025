@@ -61,11 +61,18 @@ The application assumes you run your own S3-compatible object storage (no third-
 
 5. **Generate access keys** dedicated to the web app. Inside the MinIO console, add a new user with `consoleAdmin` access or a custom policy that grants read/write to the `abrm` bucket. Record the Access Key and Secret Key.
 
-6. **Expose HTTPS**: put MinIO behind a reverse proxy such as Nginx or Caddy that terminates TLS. The app can connect to either HTTP or HTTPS endpoints, but HTTPS is strongly recommended.
+6. **Expose HTTPS**: terminate TLS in front of MinIO so uploads land on a trusted host. Our production deployment uses `storage.movana.me` behind Caddy with an automatic Let's Encrypt certificate:
+   ```caddyfile
+   storage.movana.me {
+     reverse_proxy 127.0.0.1:9000
+     encode gzip
+   }
+   ```
+   Any reverse proxy (Nginx, Traefik, Apache) that forwards HTTPS traffic to port `9000` works the same way.
 
 7. **Update `config.php`** with your MinIO endpoint and credentials:
    ```php
-   define('S3_ENDPOINT', 'https://minio.example.com');
+   define('S3_ENDPOINT', 'https://storage.movana.me');
    define('S3_KEY', 'APP_ACCESS_KEY');
    define('S3_SECRET', 'APP_SECRET_KEY');
    define('S3_BUCKET', 'abrm');
@@ -85,41 +92,12 @@ For alternative storage backends (Ceph, OpenIO, etc.), adjust the endpoint and p
 - File uploads go directly to the configured S3-compatible endpoint.
 - Exports make use of Dompdf and standard CSV output.
 
-## Web push & notification settings
+## Toast notifications
 
-- Generate VAPID keys with `php scripts/generate_vapid.php` and copy the values into `config.php` (`WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, `WEB_PUSH_VAPID_SUBJECT`).
-- Users no longer manage per-channel preferences. Every account receives in-app toasts and push alerts for the shared types (notes shared with them, password reset alerts, and task assignments). Root users additionally receive security + system notifications.
-- Browsers register a push subscription via the service worker (`/service-worker.js`); the manifest (`/manifest.webmanifest`) enables installable PWA behaviour.
+Real-time push delivery has been removed in favor of lightweight in-app toasts. The helpers expose two entry points:
 
-## Push notification flow
+- `queue_toast('Message', 'success')` records a toast that will render on the next page load.
+- `notify_users([$userId], $type, $title, $body)` now simply emits a toast if the targeted user is the one performing the action. This keeps the API surface identical while avoiding background workers, service workers, or extra tables.
 
-The browser talks directly to PHP, so you no longer need to run a separate Python process.
+Because the UI no longer depends on push subscriptions you can delete any `user_notifications` / `user_push_tokens` tables from prior installs. Every page already includes the toast stack; the JavaScript bootstrap flushes `$_SESSION['toasts']` so feedback is instant without intrusive popovers.
 
-### Step-by-step checklist (matches the YouTube tutorial)
-
-1. **Generate VAPID keys once**
-   - `php scripts/generate_vapid.php`
-   - Copy the public & private key plus subject into `config.php` (`WEB_PUSH_VAPID_*`). Do **not** delete your existing keys if they already work; the new code keeps them intact.
-2. **Serve the app over HTTPS** so service workers and Push API registration succeed.
-3. **Register a browser**
-   - Sign in and open any page so `/assets/js/notifications.js` registers `/service-worker.js`.
-   - Accept the permission prompt; the resulting subscription JSON is sent to `/save_subscription.php` where it is stored in `user_push_tokens` (MySQL) together with your user id.
-   - The profile page (`/account/profile.php`) uses `/notifications/push_subscribe.php` to show device status and let users revoke browsers.
-4. **Verify storage**
-   - Run `SELECT * FROM user_push_tokens WHERE user_id = ?` to confirm the endpoint, `p256dh`, and `auth` keys were persisted.
-5. **Queue notifications**
-   - Use `notify_users([...])` anywhere in PHP to emit a notification. It lands in the `user_notifications` table and immediately fires a push to every recipient.
-6. **Send pushes like the video demo**
-   - Execute `php scripts/notifications_worker.php "Title" "Body" "/optional/url"` to broadcast a push message to every stored subscription using the bundled `Minishlink\\WebPush` library.
-   - Successful deliveries appear instantly via the service worker, matching the workflow shown in the linked tutorial.
-
-The entire pipeline now runs inside PHP/MySQL, so deployment is as simple as uploading the code, keeping your VAPID keys, and running the worker periodically.
-
-> Heads up: the app now only emits in-app toasts and Push API notifications. Email digests and per-channel preferences were removed to keep delivery consistent and fast.
-
-### Notification types
-
-- **All users** receive alerts when a note is shared with them, when a password reset is initiated on their account, and when a task gets assigned to them.
-- **Root users** receive everything above plus system notifications and security alerts (suspicious logins, password/security changes, etc.).
-
-Both kinds of messages are stored in `user_notifications`, and the associated push registrations live in `user_push_tokens`.

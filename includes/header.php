@@ -92,11 +92,7 @@ $breadcrumbs = build_breadcrumbs($path);
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#0f111b">
   <meta name="csrf-token" content="<?php echo bc_s(csrf_token()); ?>">
-  <?php if (defined('WEB_PUSH_VAPID_PUBLIC_KEY') && WEB_PUSH_VAPID_PUBLIC_KEY): ?>
-    <meta name="vapid-public-key" content="<?php echo bc_s(WEB_PUSH_VAPID_PUBLIC_KEY); ?>">
-  <?php endif; ?>
   <script type="module" src="/assets/js/app.js?v=2.0" defer></script>
-  <script type="module" src="/assets/js/notifications.js?v=1" defer></script>
   <?php foreach ((array)$extraHead as $snippet): ?>
     <?php echo $snippet; ?>
   <?php endforeach; ?>
@@ -110,15 +106,8 @@ $breadcrumbs = build_breadcrumbs($path);
   </style>
 </head>
 <body
-  data-notif-stream="/notifications/stream.php"
-  data-notif-poll="/notifications/api.php?action=unread_count"
   data-auth="<?php echo $me ? '1' : '0'; ?>"
   data-user-id="<?php echo $me ? (int)$me['id'] : ''; ?>"
-  data-service-worker="/service-worker.js"
-  data-push-endpoint="/save_subscription.php"
-  data-push-subscribe="/notifications/push_subscribe.php"
-  data-push-public-key="<?php echo bc_s(defined('WEB_PUSH_VAPID_PUBLIC_KEY') ? (WEB_PUSH_VAPID_PUBLIC_KEY ?? '') : ''); ?>"
-  data-vapid-key="<?php echo bc_s(defined('NOTIFICATIONS_VAPID_PUBLIC_KEY') ? (NOTIFICATIONS_VAPID_PUBLIC_KEY ?? '') : (defined('WEB_PUSH_VAPID_PUBLIC_KEY') ? (WEB_PUSH_VAPID_PUBLIC_KEY ?? '') : '')); ?>"
   data-csrf-name="<?php echo bc_s(CSRF_TOKEN_NAME); ?>">
 <?php
   flash_message();
@@ -256,23 +245,9 @@ $breadcrumbs = build_breadcrumbs($path);
         <strong><?php echo bc_s($title); ?></strong>
       </div>
       <div class="app-topbar__actions">
-        <div class="nav__bell-wrapper" data-notif-bell>
-          <button class="nav__bell" aria-label="Open notifications" data-notif-bell-trigger>
-            <span class="nav__bell-icon" aria-hidden="true">🔔</span>
-            <span id="notifDot" class="nav__bell-dot" aria-hidden="true"></span>
-          </button>
-          <div class="nav__bell-popover" data-notif-popover hidden>
-            <div class="nav__bell-popover__heading">Recent activity</div>
-            <div class="nav__bell-popover__body" data-notif-popover-body>
-              <p class="nav__bell-empty" data-notif-popover-empty>You're all caught up.</p>
-              <ul class="nav__bell-list" data-notif-popover-list hidden></ul>
-            </div>
-            <div class="nav__bell-popover__footer">
-              <a href="/notifications/index.php">View all</a>
-              <a class="nav__bell-settings" href="/account/profile.php#notification-preferences" title="Notification settings"><span aria-hidden="true">⚙️</span><span class="sr-only">Notification settings</span></a>
-            </div>
-          </div>
-        </div>
+        <?php if ($me): ?>
+          <a class="btn secondary" href="/task_new.php">New Task</a>
+        <?php endif; ?>
 
         <button type="button" class="nav__command" data-command-open>
           <span class="nav__command-icon" aria-hidden="true">⌘</span>

@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/helpers.php';
-require_once __DIR__ . '/includes/notifications.php';
 require_login(); // must be signed in to change your password
 
 $errors = [];

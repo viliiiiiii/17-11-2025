@@ -24,12 +24,6 @@ function attempt_login(string $email, string $password): bool {
         auth_login((int)$user['id']);
         enforce_not_suspended();
         log_event('login', 'user', (int)$user['id']);
-        try {
-            require_once __DIR__ . '/includes/notifications.php';
-            if (function_exists('notif_track_login')) {
-                notif_track_login((int)$user['id'], $resolveClientIp(), $_SERVER['HTTP_USER_AGENT'] ?? '');
-            }
-        } catch (Throwable $e) {}
         return true;
     }
 
@@ -60,12 +54,6 @@ function attempt_login(string $email, string $password): bool {
             if ($user) {
                 auth_login((int)$user['id']);
                 log_event('login', 'user', (int)$user['id'], ['source' => 'legacy_seed']);
-                try {
-                    require_once __DIR__ . '/includes/notifications.php';
-                    if (function_exists('notif_track_login')) {
-                        notif_track_login((int)$user['id'], $resolveClientIp(), $_SERVER['HTTP_USER_AGENT'] ?? '');
-                    }
-                } catch (Throwable $e) {}
                 return true;
             }
         } catch (Throwable $e) {
