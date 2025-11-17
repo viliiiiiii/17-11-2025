@@ -48,6 +48,10 @@
   flex: 1;
 }
 
+.toast-message__body strong { display: block; margin-bottom: .25rem; }
+.toast-message__body p { margin: 0; }
+.toast-link { color: #fff; text-decoration: underline; font-weight: 600; }
+
 .toast-message[data-variant="success"] { background: linear-gradient(135deg, #16a34a, #15803d); }
 .toast-message[data-variant="error"] { background: linear-gradient(135deg, #dc2626, #b91c1c); }
 .toast-message[data-variant="warning"] { background: linear-gradient(135deg, #d97706, #b45309); }

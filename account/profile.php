@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../helpers.php';
 require_login();
-require_once __DIR__ . '/../includes/notifications.php';
 
 /* ---------- Data source detection ---------- */
 function profile_resolve_user_store(): array {
@@ -412,15 +411,6 @@ try {
 }
 
 $storeSchema = profile_store_schema();
-$notificationUserId = null;
-if (function_exists('notif_resolve_local_user_id')) {
-    try {
-        $notificationUserId = notif_resolve_local_user_id($userId);
-    } catch (Throwable $e) {
-        $notificationUserId = null;
-    }
-}
-$notificationsAvailable = $notificationUserId !== null;
 $sectorOptions = profile_fetch_sectors($pdo);
 
 /* ---------- POST handlers ---------- */
@@ -533,22 +523,6 @@ if (is_post()) {
                 }
             }
         }
-        if ($action === 'revoke_device') {
-            if (!$notificationsAvailable) {
-                $errors[] = 'Notifications are not available right now.';
-            } else {
-                $deviceId = (int)($_POST['device_id'] ?? 0);
-                if ($deviceId <= 0) {
-                    $errors[] = 'Device not found.';
-                } else {
-                    if (notif_delete_push_subscription($notificationUserId, $deviceId)) {
-                        redirect_with_message('/account/profile.php', 'Device disconnected.', 'success');
-                    } else {
-                        $errors[] = 'Device not found or already removed.';
-                    }
-                }
-            }
-        }
     }
 
     try {
@@ -575,16 +549,6 @@ $membershipSummary = profile_membership_summary($user['created_at'] ?? null);
 $latestSecurityEvent = $securityEvents[0] ?? null;
 $lastActiveRelative = (string)($latestSecurityEvent['relative'] ?? '');
 $lastActiveFull = (string)($latestSecurityEvent['formatted'] ?? '');
-$notificationDevices = ($notificationsAvailable && $notificationUserId)
-    ? notif_fetch_devices($notificationUserId)
-    : [];
-$recentNotifications = ($notificationsAvailable && $notificationUserId)
-    ? notif_recent($notificationUserId, 4)
-    : [];
-$unreadNotificationCount = ($notificationsAvailable && $notificationUserId)
-    ? notif_unread_count($notificationUserId)
-    : 0;
-$pushReady = $notificationsAvailable && notif_vapid_ready();
 
 $title = 'My Profile';
 include __DIR__ . '/../includes/header.php';
@@ -628,8 +592,8 @@ include __DIR__ . '/../includes/header.php';
         <dd>#<?php echo (int)$user['id']; ?></dd>
       </div>
       <div>
-        <dt>Unread alerts</dt>
-        <dd><?php echo (int)$unreadNotificationCount; ?></dd>
+        <dt>Role</dt>
+        <dd><?php echo $roleLabel ? sanitize($roleLabel) : 'Member'; ?></dd>
       </div>
     </dl>
   </section>
@@ -696,78 +660,6 @@ include __DIR__ . '/../includes/header.php';
           <button class="btn secondary" type="submit">Update password</button>
         </div>
       </form>
-    </section>
-
-    <section class="account-card card account-card--notifications" id="notification-center">
-      <div class="account-card__header">
-        <h2>Notifications</h2>
-        <p>Push + toast alerts keep you informed.</p>
-      </div>
-      <div class="account-notify-status">
-        <div>
-          <p class="account-notify-status__value"><?php echo $pushReady ? 'Push ready' : 'Push unavailable'; ?></p>
-          <p class="account-notify-status__meta"><?php echo (int)$unreadNotificationCount; ?> unread alerts</p>
-        </div>
-        <?php if ($pushReady): ?>
-          <button type="button" class="btn primary" data-notification-permission>Allow this browser</button>
-        <?php else: ?>
-          <p class="muted small">Configure VAPID keys to enable push delivery.</p>
-        <?php endif; ?>
-      </div>
-      <div class="account-device-list">
-        <?php if ($notificationDevices): ?>
-          <?php foreach ($notificationDevices as $device): ?>
-            <div class="account-device">
-              <div>
-                <p class="account-device__label"><?php echo sanitize(profile_summarize_user_agent($device['user_agent'] ?? 'Browser')); ?></p>
-                <?php $stamp = $device['last_used_at'] ?? $device['created_at'] ?? null; ?>
-                <p class="account-device__meta"><?php echo $stamp ? sanitize(profile_format_datetime($stamp)) : 'First seen recently'; ?></p>
-              </div>
-              <form method="post" class="account-device__actions">
-                <input type="hidden" name="action" value="revoke_device">
-                <input type="hidden" name="device_id" value="<?php echo (int)$device['id']; ?>">
-                <input type="hidden" name="<?php echo CSRF_TOKEN_NAME; ?>" value="<?php echo csrf_token(); ?>">
-                <button class="btn secondary small" type="submit">Disconnect</button>
-              </form>
-            </div>
-          <?php endforeach; ?>
-        <?php else: ?>
-          <p class="muted">No browsers or devices are registered yet.</p>
-        <?php endif; ?>
-      </div>
-    </section>
-
-    <section class="account-card card">
-      <div class="account-card__header">
-        <h2>Recent alerts</h2>
-        <p>Your latest push + toast notifications.</p>
-      </div>
-      <ul class="account-inbox">
-        <?php if ($recentNotifications): ?>
-          <?php foreach ($recentNotifications as $notification): ?>
-            <li class="account-inbox__item<?php echo !empty($notification['is_read']) ? ' is-read' : ''; ?>">
-              <div>
-                <p class="account-inbox__title">
-                  <?php if (!empty($notification['url'])): ?>
-                    <a href="<?php echo sanitize($notification['url']); ?>"><?php echo sanitize($notification['title'] ?: 'Notification'); ?></a>
-                  <?php else: ?>
-                    <?php echo sanitize($notification['title'] ?: 'Notification'); ?>
-                  <?php endif; ?>
-                </p>
-                <?php if (!empty($notification['body'])): ?>
-                  <p class="account-inbox__body"><?php echo sanitize($notification['body']); ?></p>
-                <?php endif; ?>
-                <p class="account-inbox__meta"><?php echo sanitize(profile_relative_time($notification['created_at'] ?? null)); ?></p>
-              </div>
-            </li>
-          <?php endforeach; ?>
-        <?php else: ?>
-          <li class="account-inbox__item is-empty">New alerts will appear here.</li>
-        <?php endif; ?>
-      </ul>
-      <div class="account-card__footer">
-        <a class="btn secondary small" href="/notifications/index.php">Open inbox</a>
-      </div>
     </section>
 
     <section class="account-card card">

@@ -10,9 +10,9 @@ define('DB_CHARSET', 'utf8mb4');
 define('BASE_URL', 'http://localhost'); // no trailing slash
 
 // S3-compatible storage credentials
-// Example for MinIO running locally: http://127.0.0.1:9000
+// Example for MinIO served from https://storage.movana.me
 
-define('S3_ENDPOINT', 'https://your-s3-endpoint');
+define('S3_ENDPOINT', 'https://storage.movana.me');
 define('S3_KEY', 'your-access-key');
 define('S3_SECRET', 'your-secret-key');
 define('S3_BUCKET', 'abrm');
@@ -31,10 +31,4 @@ define('APP_TIMEZONE', 'UTC');
 
 define('APP_TITLE', 'ABRM Management');
 
-// Web Push / VAPID configuration (fill after generating keys via scripts/generate_vapid.php)
-define('WEB_PUSH_VAPID_PUBLIC_KEY', getenv('WEB_PUSH_VAPID_PUBLIC_KEY') ?: '');
-define('WEB_PUSH_VAPID_PRIVATE_KEY', getenv('WEB_PUSH_VAPID_PRIVATE_KEY') ?: '');
-define('WEB_PUSH_VAPID_SUBJECT', getenv('WEB_PUSH_VAPID_SUBJECT') ?: 'mailto:admin@example.com');
-
-define('NOTIFICATIONS_SERVICE_URL', getenv('NOTIFICATIONS_SERVICE_URL') ?: 'http://127.0.0.1:8001');
-define('NOTIFICATIONS_VAPID_PUBLIC_KEY', getenv('NOTIFICATIONS_VAPID_PUBLIC_KEY') ?: WEB_PUSH_VAPID_PUBLIC_KEY);
+// Toast notifications only; no push/VAPID configuration is required anymore.

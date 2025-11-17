@@ -2292,28 +2292,6 @@ a {
 
 <script>
 (function(){
-  const modalButtons = document.querySelectorAll('[data-modal-open]');
-  modalButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-modal-open');
-      const modal = document.getElementById(id);
-      if (modal) {
-        modal.hidden = false;
-      }
-    });
-  });
-  document.querySelectorAll('[data-modal-close]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const modal = btn.closest('.modal');
-      if (modal) modal.hidden = true;
-    });
-  });
-  document.addEventListener('click', evt => {
-    if (evt.target.classList && evt.target.classList.contains('modal')) {
-      evt.target.hidden = true;
-    }
-  });
-
   const cloneRow = (container, template) => {
     const clone = template.cloneNode(true);
     clone.querySelectorAll('input').forEach(input => {

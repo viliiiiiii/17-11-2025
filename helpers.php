@@ -17,11 +17,39 @@ if (file_exists($autoloadPath)) {
     require_once $autoloadPath;
 }
 
-require_once __DIR__ . '/includes/notification_service.php';
-
 // Guard: only define functions once even if file is included multiple times.
 if (!defined('HELPERS_BOOTSTRAPPED')) {
     define('HELPERS_BOOTSTRAPPED', true);
+
+    /** Queue a lightweight toast message for the next response cycle. */
+    function queue_toast(string $message, string $type = 'info', array $extra = []): void
+    {
+        if ($message === '') {
+            return;
+        }
+
+        if (!isset($_SESSION['toasts']) || !is_array($_SESSION['toasts'])) {
+            $_SESSION['toasts'] = [];
+        }
+
+        try {
+            $id = bin2hex(random_bytes(4));
+        } catch (Throwable $e) {
+            $id = uniqid('toast_', true);
+        }
+
+        $payload = [
+            'id'         => $id,
+            'message'    => $message,
+            'type'       => $type ?: 'info',
+            'title'      => $extra['title'] ?? null,
+            'body'       => $extra['body'] ?? null,
+            'url'        => $extra['url'] ?? null,
+            'created_at' => gmdate('c'),
+        ];
+
+        $_SESSION['toasts'][] = $payload;
+    }
 
     /**
      * Return a PDO connection to either the application DB ("apps" = abrm)
@@ -847,35 +875,33 @@ function require_root(): void {
     exit('Forbidden');
   }
 }
-function notify_users(array $userIds, string $type, string $title, string $body, ?string $link = null, array $payload = []): void {
-    $recipients = array_values(array_filter(array_map('intval', $userIds)));
-    if (!$recipients) {
-        return;
-    }
-
-    require_once __DIR__ . '/includes/notifications.php';
-
-    $actor = current_user();
-    $actorId = $actor && !empty($actor['id']) ? (int)$actor['id'] : null;
-    $link = $link !== null ? (string)$link : null;
-
-    foreach ($recipients as $uid) {
-        $localId = notif_resolve_local_user_id($uid);
-        if (!$localId) {
-            continue;
+    function notify_users(array $userIds, string $type, string $title, string $body, ?string $link = null, array $payload = []): void {
+        $recipients = array_values(array_filter(array_map('intval', $userIds)));
+        if (!$recipients) {
+            return;
         }
 
-        notif_emit([
-            'user_id'       => $localId,
-            'actor_user_id' => $actorId,
-            'type'          => $type,
-            'title'         => $title,
-            'body'          => $body,
-            'url'           => $link,
-            'data'          => $payload,
+        $current = current_user();
+        $currentId = $current && isset($current['id']) ? (int)$current['id'] : null;
+        if (!$currentId) {
+            return; // with notifications removed we can only inform the active user
+        }
+
+        if (!in_array($currentId, $recipients, true)) {
+            return;
+        }
+
+        $message = trim($title);
+        if ($body) {
+            $message .= ($message !== '' ? ' — ' : '') . trim($body);
+        }
+
+        queue_toast($message ?: 'Update available', 'info', [
+            'title' => $title ?: null,
+            'body'  => $body ?: null,
+            'url'   => $link,
         ]);
     }
-}
 
 /** Resolve a notification recipient from various identifiers (id/email). */
 function resolve_notification_user_id($value): ?int {
