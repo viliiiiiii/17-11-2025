@@ -79,6 +79,7 @@ function build_breadcrumbs(string $path): array {
 }
 
 $breadcrumbs = build_breadcrumbs($path);
+$heroSummary = 'Manage ' . bc_s(APP_TITLE) . ' workflows at a glance.';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -96,14 +97,6 @@ $breadcrumbs = build_breadcrumbs($path);
   <?php foreach ((array)$extraHead as $snippet): ?>
     <?php echo $snippet; ?>
   <?php endforeach; ?>
-  <style>
-    .breadcrumbs { margin: 0 0 1rem; font-size: .85rem; color: #8da2c0; text-transform: uppercase; letter-spacing: .08em; }
-    .breadcrumbs ol { list-style: none; display: flex; flex-wrap: wrap; gap: .35rem; padding: 0; margin: 0; }
-    .breadcrumbs li { display: flex; align-items: center; gap: .35rem; }
-    .breadcrumbs li + li::before { content: '\203A'; color: #475569; font-weight: 600; }
-    .breadcrumbs a { color: #7dd3fc; border-bottom: 1px solid rgba(125,211,252,.4); text-decoration: none; }
-    .breadcrumbs [aria-current="page"] { color: #e2e8f0; font-weight: 600; border-bottom: none; }
-  </style>
 </head>
 <body
   data-auth="<?php echo $me ? '1' : '0'; ?>"
@@ -135,7 +128,7 @@ $breadcrumbs = build_breadcrumbs($path);
       </button>
     </div>
 
-    <nav class="app-sidebar__nav" aria-label="Primary">
+    <nav class="app-sidebar__nav" aria-label="Primary navigation">
       <p class="app-sidebar__section-label">Workspace</p>
       <ul class="nav nav--stacked">
         <li>
@@ -235,18 +228,20 @@ $breadcrumbs = build_breadcrumbs($path);
 
   <div class="app-shell__content">
     <header class="app-topbar">
-      <button id="navToggle" class="sidebar-toggle" aria-label="Toggle navigation" aria-expanded="false">
-        <span class="sidebar-toggle__bar"></span>
-        <span class="sidebar-toggle__bar"></span>
-        <span class="sidebar-toggle__bar"></span>
-      </button>
       <div class="app-topbar__title">
-        <p>Now viewing</p>
-        <strong><?php echo bc_s($title); ?></strong>
+        <button id="navToggle" class="sidebar-toggle" aria-label="Toggle navigation" aria-expanded="false">
+          <span class="sidebar-toggle__bar"></span>
+          <span class="sidebar-toggle__bar"></span>
+          <span class="sidebar-toggle__bar"></span>
+        </button>
+        <div class="topbar-meta">
+          <p>Active space</p>
+          <strong><?php echo bc_s($title); ?></strong>
+        </div>
       </div>
       <div class="app-topbar__actions">
         <?php if ($me): ?>
-          <a class="btn secondary" href="/task_new.php">New Task</a>
+          <a class="btn primary" href="/task_new.php">New Task</a>
         <?php endif; ?>
 
         <button type="button" class="nav__command" data-command-open>
@@ -263,6 +258,40 @@ $breadcrumbs = build_breadcrumbs($path);
         <?php endif; ?>
       </div>
     </header>
+
+    <section class="page-hero">
+      <div class="page-hero__content">
+        <?php if (!empty($breadcrumbs) && is_array($breadcrumbs)): ?>
+          <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <ol>
+              <?php
+                $lastIdx = count($breadcrumbs) - 1;
+                foreach ($breadcrumbs as $i => $c) {
+                  $label = bc_s($c['label'] ?? '');
+                  $href  = $c['href'] ?? null;
+                  if ($i === $lastIdx || !$href) {
+                    echo '<li><span aria-current="page">'.$label.'</span></li>';
+                  } else {
+                    echo '<li><a href="'.bc_s($href).'">'.$label.'</a></li>';
+                  }
+                }
+              ?>
+            </ol>
+          </nav>
+        <?php endif; ?>
+        <p class="page-hero__eyebrow"><?php echo bc_s(APP_TITLE); ?></p>
+        <div class="page-hero__headline">
+          <h1><?php echo bc_s($title); ?></h1>
+          <p><?php echo $heroSummary; ?></p>
+        </div>
+      </div>
+      <div class="page-hero__actions">
+        <?php if ($me): ?>
+          <a class="btn primary" href="/task_new.php">Create Task</a>
+        <?php endif; ?>
+        <a class="btn secondary" href="/tasks.php">View Tasks</a>
+      </div>
+    </section>
 
     <div id="commandPalette" class="command-palette" hidden aria-hidden="true">
       <div class="command-palette__backdrop" data-command-close></div>
@@ -285,22 +314,4 @@ $breadcrumbs = build_breadcrumbs($path);
 
     <div id="toast-container" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
 
-    <main class="container" id="app-main">
-      <?php if (!empty($breadcrumbs) && is_array($breadcrumbs)): ?>
-        <nav class="breadcrumbs" aria-label="Breadcrumb">
-          <ol>
-            <?php
-              $lastIdx = count($breadcrumbs) - 1;
-              foreach ($breadcrumbs as $i => $c) {
-                $label = bc_s($c['label'] ?? '');
-                $href  = $c['href'] ?? null;
-                if ($i === $lastIdx || !$href) {
-                  echo '<li><span aria-current="page">'.$label.'</span></li>';
-                } else {
-                  echo '<li><a href="'.bc_s($href).'">'.$label.'</a></li>';
-                }
-              }
-            ?>
-          </ol>
-        </nav>
-      <?php endif; ?>
+    <main class="container page-body" id="app-main">
